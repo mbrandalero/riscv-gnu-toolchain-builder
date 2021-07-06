@@ -14,48 +14,51 @@ help:
 	@echo '                                                                          '
 
 
-BUILDER := mbrandalero/riscv-gnu-toolchain-builder
-TOOL := mbrandalero/riscv-gnu-toolchain
+BUILDER := mbrandalero/riscv-tools-builder:with_automake1.14
+TOOL := mbrandalero/riscv-tools
 
 BASEDIR=$(CURDIR)
 DOCKER = podman
 
-RISCV := $(BASEDIR)/bin/riscv
-RISCV-SRC := $(BASEDIR)/src/riscv-gnu-toolchain
-RISCV-ISASIM-SRC := $(BASEDIR)/src/riscv-isa-sim
+RISCV-LOCAL := $(BASEDIR)/riscv
+RISCV-CONTR := /riscv
 
-RISCV-IN := /opt/riscv
-RISCV-SRC-IN := /riscv-gnu-toolchain
-RISCV-ISASIM-SRC-IN := /riscv-isa-sim
+RISCV-TOOLCHAIN-SRC-LOCAL := $(BASEDIR)/riscv-gnu-toolchain
+RISCV-TOOLCHAIN-SRC-CONTR := /riscv-src/riscv-gnu-toolchain
 
-RISCV-BUILD-DIR = $(RISCV-SRC)/build
+RISCV-TOOLS-SRC-LOCAL := $(BASEDIR)/riscv-tools
+RISCV-TOOLS-SRC-CONTR := /riscv-src/riscv-tools
 
-DOCKER-BUILDER-RUN := $(DOCKER) run --rm -i -t -v${RISCV}:${RISCV-IN} -v${RISCV-SRC}:${RISCV-SRC-IN} -v${RISCV-ISASIM-SRC}:${RISCV-ISASIM-SRC-IN} ${BUILDER}
+#RISCV-BUILD-DIR = $(RISCV-SRC)/build
 
-.PHONY: git-clone
-git-clone:
-	git clone --recursive https://github.com/riscv/riscv-gnu-toolchain ${RISCV-SRC}
-	mkdir -p ${RISCV-SRC}/build
-	git clone --recursive https://github.com/riscv/riscv-isa-sim ${RISCV-ISASIM-SRC}
-	mkdir -p ${RISCV-ISASIM-SRC}/build
-	#git clone https://github.com/riscv/riscv-gnu-toolchain ${RISCV-SRC}
-	#cd ${RISCV-SRC} && git submodule update --init --recursive
+DOCKER-BUILDER-RUN := $(DOCKER) run --rm -i -t \
+	-v${RISCV-LOCAL}:${RISCV-CONTR} \
+	-v${RISCV-TOOLCHAIN-SRC-LOCAL}:${RISCV-TOOLCHAIN-SRC-CONTR} \
+	-v${RISCV-TOOLS-SRC-LOCAL}:${RISCV-TOOLS-SRC-CONTR} \
+	\
+	${BUILDER}
+
+.PHONY: toolflow-init
+toolflow-init:
+	mkdir riscv
 
 .PHONY: builder
 builder:
 	$(DOCKER) build ./builder -t ${BUILDER}
 	#$(DOCKER) push ${BUILDER}
 
+builder-launch:
+	$(DOCKER-BUILDER-RUN)
 
 .PHONY: build-make-multilib
-build-make-multilib:
-	${DOCKER-BUILDER-RUN} /bin/bash -c "cd /riscv-gnu-toolchain/build && ${RISCV-SRC-IN}/configure --prefix=${RISCV-IN} --enable-multilib"
-	${DOCKER-BUILDER-RUN} /bin/bash -c "cd /riscv-isa-sim/build && ${RISCV-ISASIM-SRC-IN}/configure --prefix=${RISCV-IN} --enable-multilib"
-	${DOCKER-BUILDER-RUN} /bin/bash -c "cd /riscv-gnu-toolchain/build && make"
-	${DOCKER-BUILDER-RUN} /bin/bash -c "cd /riscv-gnu-toolchain/build && make linux"
-	${DOCKER-BUILDER-RUN} /bin/bash -c "cd /riscv-isa-sim/build && make"
-	${DOCKER-BUILDER-RUN} /bin/bash -c "cd /riscv-isa-sim/build && make install"
+build-riscv-gnu-toolchain:
+	mkdir -p riscv-gnu-toolchain/build
+	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-TOOLCHAIN-SRC-CONTR}/build && ../configure --prefix=${RISCV-CONTR} --enable-multilib"
+	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-TOOLCHAIN-SRC-CONTR}/build && make -j4"
+	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-TOOLCHAIN-SRC-CONTR}/build && make -j4 linux"
 
+build-riscv-tools:
+	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-TOOLS-SRC-CONTR} && ./build.sh"
 
 .PHONY: tool-chain
 tool-chain:
@@ -68,4 +71,4 @@ build-hello:
 	$(DOCKER) run --rm -v $(BASEDIR)/app:/app -w /app ${TOOL} /riscv/bin/riscv64-unknown-elf-gcc -o hello hello.c
 
 .PHONY: build
-build: git-clone builder build-make-multilib tool-chain build-hello
+build: toolflow-init builder build-make-multilib tool-chain build-hello
