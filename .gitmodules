@@ -4,3 +4,9 @@
 [submodule "riscv-gnu-toolchain"]
 	path = src/riscv-gnu-toolchain
 	url = https://github.com/riscv/riscv-gnu-toolchain.git
+[submodule "src/riscv-isa-sim"]
+	path = src/riscv-isa-sim
+	url = https://github.com/riscv/riscv-isa-sim.git
+[submodule "src/riscv-pk"]
+	path = src/riscv-pk
+	url = https://github.com/riscv/riscv-pk.git

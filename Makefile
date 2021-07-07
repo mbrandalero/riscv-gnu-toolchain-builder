@@ -14,55 +14,64 @@ help:
 	@echo '                                                                          '
 
 
-BUILDER := mbrandalero/riscv-tools-builder:with_automake1.14
-TOOL := mbrandalero/riscv-tools
+BUILDER := mbrandalero/riscv-tools-builder
+TOOL := mbrandalero/riscv-toolchain
 
 BASEDIR=$(CURDIR)
 DOCKER = podman
 
-RISCV-LOCAL := $(BASEDIR)/riscv
+RISCV-LOCAL := $(BASEDIR)/docker/riscv-toolchain/riscv
 RISCV-CONTR := /riscv
 
-RISCV-TOOLCHAIN-SRC-LOCAL := $(BASEDIR)/riscv-gnu-toolchain
+RISCV-TOOLCHAIN-SRC-LOCAL := $(BASEDIR)/src/riscv-gnu-toolchain
 RISCV-TOOLCHAIN-SRC-CONTR := /riscv-src/riscv-gnu-toolchain
 
-RISCV-TOOLS-SRC-LOCAL := $(BASEDIR)/riscv-tools
-RISCV-TOOLS-SRC-CONTR := /riscv-src/riscv-tools
+RISCV-SPIKE-LOCAL := $(BASEDIR)/src/riscv-isa-sim
+RISCV-SPIKE-CONTR := /riscv-src/riscv-isa-sim
+
+RISCV-PK-LOCAL := $(BASEDIR)/src/riscv-pk
+RISCV-PK-CONTR := /riscv-src/riscv-pk
 
 #RISCV-BUILD-DIR = $(RISCV-SRC)/build
 
 DOCKER-BUILDER-RUN := $(DOCKER) run --rm -i -t \
 	-v${RISCV-LOCAL}:${RISCV-CONTR} \
 	-v${RISCV-TOOLCHAIN-SRC-LOCAL}:${RISCV-TOOLCHAIN-SRC-CONTR} \
-	-v${RISCV-TOOLS-SRC-LOCAL}:${RISCV-TOOLS-SRC-CONTR} \
+	-v${RISCV-SPIKE-LOCAL}:${RISCV-SPIKE-CONTR} \
+	-v${RISCV-PK-LOCAL}:${RISCV-PK-CONTR} \
 	\
 	${BUILDER}
 
-.PHONY: toolflow-init
-toolflow-init:
-	mkdir riscv
-
 .PHONY: builder
 builder:
-	$(DOCKER) build ./builder -t ${BUILDER}
+	$(DOCKER) build ./docker/builder -t ${BUILDER}
 	#$(DOCKER) push ${BUILDER}
 
-builder-launch:
-	$(DOCKER-BUILDER-RUN)
+.PHONY: run-builder
+run-builder:
+	${DOCKER-BUILDER-RUN}
 
 .PHONY: build-make-multilib
-build-riscv-gnu-toolchain:
-	mkdir -p riscv-gnu-toolchain/build
+riscv-gnu-toolchain:
+	mkdir -p src/riscv-gnu-toolchain/build
 	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-TOOLCHAIN-SRC-CONTR}/build && ../configure --prefix=${RISCV-CONTR} --enable-multilib"
 	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-TOOLCHAIN-SRC-CONTR}/build && make -j4"
-	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-TOOLCHAIN-SRC-CONTR}/build && make -j4 linux"
+	
+riscv-isa-sim:
+	mkdir -p src/riscv-isa-sim/build
+	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-SPIKE-CONTR}/build && ../configure --prefix=${RISCV-CONTR}"
+	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-SPIKE-CONTR}/build && make -j4"
+	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-SPIKE-CONTR}/build && make install"
 
-build-riscv-tools:
-	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-TOOLS-SRC-CONTR} && ./build.sh"
+riscv-pk:
+	mkdir -p src/riscv-pk/build
+	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-PK-CONTR}/build && ../configure --prefix=${RISCV-CONTR} --host=riscv64-unknown-elf --with-arch=rv32imc"
+	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-PK-CONTR}/build && make -j4"
+	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-PK-CONTR}/build && make install"
 
 .PHONY: tool-chain
-tool-chain:
-	$(DOCKER) build ./bin -t ${TOOL}
+riscv-container:
+	$(DOCKER) build ./docker/riscv-toolchain -t ${TOOL}
 	$(DOCKER) push ${TOOL}
 
 
