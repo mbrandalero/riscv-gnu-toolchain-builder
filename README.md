@@ -1,36 +1,29 @@
-# riscv-gnu-toolchains
-riscv-gnu-toolchains
+# Summary
 
+This repository was forked from [mingz2013/riscv-gnu-toolchain-builder](https://github.com/mingz2013/riscv-gnu-toolchain-builder) and extended.
 
+The original repo included only the riscv-gnu-toolchain and scripts to build a docker image containing the tools. This repo includes all that + [riscv-isa-sim](https://github.com/riscv/riscv-isa-sim) + [riscv-pk](https://github.com/riscv/riscv-pk). The scripts are tuned to generate the multilib version of the toolchain and the rv32imc version of `pk` so that it can /(hopefully, after some debugging) work with the [cv32e40p](https://github.com/openhwgroup/cv32e40p/) processor core.
 
-## build tool chains
+A prebuilt version of the image containing the riscv toolchain is available at the (Docker Hub)[https://hub.docker.com/r/mbrandalero/riscv-toolchain]. 
 
-- `make git-clone`
-- `make builder`
-- `make tool-chain`
-- `make build` # build all
+# Getting Started
 
+Run `make all` and see the magic happen. 
 
-不建议构建所有，我试过了，太慢，太大，没有必要。  
-建议构建需要的组合方式。
+Compilation takes a few hours (~4) in a modern (as of 2021) desktop machine.
 
+# Detailed Description
 
-To build the glibc (Linux) on OS X, you will need to build within a case-sensitive file system. The simplest approach is to create and mount a new disk image with a case sensitive format. Make sure that the mount point does not contain spaces. This is not necessary to build newlib or gcc itself on OS X.
+## Build Flow
 
-This process will start by downloading about 200 MiB of upstream sources, then will patch, build, and install the toolchain. If a local cache of the upstream sources exists in $(DISTDIR), it will be used; the default location is /var/cache/distfiles. Your computer will need about 8 GiB of disk space to complete the process.
+The make script will first compile a _builder_ image with all the tools needed to compile the toolchain.
 
+The toolchain will be built in a local directory mounted inside the container via a volume.
 
-## use
-- `docker pull mingz2013/riscv-gnu-toolchain`
-- `docker run --rm -v "$PWD"/app:/myapp -w /myapp mingz2013/riscv-gnu-toolchain /riscv/bin/riscv64-unknown-elf-gcc -o myapp hello.c`
-- `docker run --rm mingz2013/riscv-gnu-toolchain ls -l /riscv/bin`
-- `docker run --rm -v "$PWD"/app:/app -w /app mingz2013/riscv-gnu-toolchain /riscv/bin/riscv64-unknown-elf-gcc -o hello hello.c`
-- `docker run --rm -v "$PWD"/app:/app -w /app mingz2013/riscv-gnu-toolchain /riscv/bin/riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 -o hello hello.c`
-- `docker run --rm -v "$PWD"/app:/app -w /app mingz2013/riscv-gnu-toolchain /riscv/bin/riscv64-unknown-linux-gnu-gcc hello.c`
+A final image is built by copying the directory with all the tools, after being compiled with the builder.
 
-## docker
-- https://hub.docker.com/r/mingz2013/riscv-gnu-toolchain
-- https://hub.docker.com/r/mingz2013/riscv-gnu-toolchain-builder
+## Repository Structure
 
-# reference
-- https://github.com/riscv/riscv-gnu-toolchain
+- `docker` contains the Dockerfiles for the two images that will be built.
+- `src` contains the source files for riscv-gnu-toolchain, riscv-isa-sim and riscv-pk.
+- `test` contains a test application (hello world) that is compiled with the riscv toolchain and run in the ISA simulator. 

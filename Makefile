@@ -70,14 +70,21 @@ riscv-pk:
 	${DOCKER-BUILDER-RUN} /bin/bash -c "cd ${RISCV-PK-CONTR}/build && make install"
 
 .PHONY: tool-chain
-riscv-container:
+riscv-docker:
 	$(DOCKER) build ./docker/riscv-toolchain -t ${TOOL}
 	$(DOCKER) push ${TOOL}
 
+.PHONY: test
+test:
+	echo "-- Trying to compile hello world ..."
+	$(DOCKER) run --rm -v $(BASEDIR)/test:/test -w /test $(TOOL) riscv64-unknown-elf-gcc -march=rv32imc -mabi=ilp32 -o hello hello.c
+	echo "Done!"
+	echo "-- Trying to run hello world in ISA sim ..."
+	$(DOCKER) run --rm -v $(BASEDIR)/test:/test -w /test $(TOOL) spike --isa=rv32imc /riscv/riscv32-unknown-elf/bin/pk hello 
+	echo "Done!"
 
 .PHONY: build-hello
 build-hello:
 	$(DOCKER) run --rm -v $(BASEDIR)/app:/app -w /app ${TOOL} /riscv/bin/riscv64-unknown-elf-gcc -o hello hello.c
 
-.PHONY: build
-build: toolflow-init builder build-make-multilib tool-chain build-hello
+all: builder riscv-gnu-toolchain riscv-isa-sim riscv-pk riscv-docker

@@ -1,6 +1,3 @@
-[submodule "riscv-tools"]
-	path = src/riscv-tools
-	url = https://github.com/riscv/riscv-tools.git
 [submodule "riscv-gnu-toolchain"]
 	path = src/riscv-gnu-toolchain
 	url = https://github.com/riscv/riscv-gnu-toolchain.git
